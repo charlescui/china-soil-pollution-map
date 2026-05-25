@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="data:,">
+  <link rel="icon" href="assets/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <title>中国省域土壤重金属污染程度地图</title>
   <style>
     :root {
@@ -78,27 +79,12 @@
       min-width: 0;
     }
 
-    .brand-mark {
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
-      background:
-        linear-gradient(135deg, rgba(44, 107, 88, 0.92), rgba(199, 91, 46, 0.88)),
-        radial-gradient(circle at 25% 25%, #f5d47b, transparent 30%);
-      box-shadow: 0 8px 18px rgba(23, 66, 59, 0.22);
+    .brand-logo {
+      width: 58px;
+      height: 38px;
+      object-fit: contain;
       flex: 0 0 auto;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .brand-mark::after {
-      content: "";
-      position: absolute;
-      inset: 8px 10px 9px 10px;
-      border: 2px solid rgba(255, 255, 255, 0.72);
-      border-left: 0;
-      border-bottom: 0;
-      transform: rotate(45deg);
+      filter: drop-shadow(0 8px 14px rgba(16, 78, 165, 0.14));
     }
 
     h1 {
@@ -653,7 +639,7 @@
     <header class="topbar">
       <div class="topbar-inner">
         <div class="brand">
-          <div class="brand-mark" aria-hidden="true"></div>
+          <img class="brand-logo" src="assets/ongo360-mark.png" alt="ONGO360">
           <div>
             <h1>中国省域土壤重金属污染程度地图</h1>
             <div class="subtitle">基于公开论文表 5 的省域 Igeo 数据，覆盖中国大陆 31 个省级行政区，指标为 Cd、Pb、Zn、Cu、As、Cr。</div>
