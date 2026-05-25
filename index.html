@@ -1,0 +1,1163 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>中国省域土壤重金属污染程度地图</title>
+  <style>
+    :root {
+      --bg: #f5f7f3;
+      --surface: #ffffff;
+      --surface-soft: #eef3ec;
+      --ink: #18211d;
+      --muted: #66716b;
+      --line: #d9e0d8;
+      --deep: #17423b;
+      --accent: #2c6b58;
+      --accent-soft: #dcebe4;
+      --warn: #c65732;
+      --shadow: 0 18px 45px rgba(34, 47, 40, 0.12);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      letter-spacing: 0;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .app-shell {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(245, 247, 243, 0.92);
+      backdrop-filter: blur(14px);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .topbar-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background:
+        linear-gradient(135deg, rgba(44, 107, 88, 0.92), rgba(199, 91, 46, 0.88)),
+        radial-gradient(circle at 25% 25%, #f5d47b, transparent 30%);
+      box-shadow: 0 8px 18px rgba(23, 66, 59, 0.22);
+      flex: 0 0 auto;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      inset: 8px 10px 9px 10px;
+      border: 2px solid rgba(255, 255, 255, 0.72);
+      border-left: 0;
+      border-bottom: 0;
+      transform: rotate(45deg);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(19px, 2vw, 28px);
+      line-height: 1.18;
+      font-weight: 780;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .source-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 34px;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--deep);
+      font-size: 12px;
+      font-weight: 680;
+      white-space: nowrap;
+    }
+
+    main {
+      width: 100%;
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 22px 24px 44px;
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .metric-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .metric-button,
+    .utility-button {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: #2a3832;
+      border-radius: 8px;
+      min-height: 38px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 720;
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
+    }
+
+    .metric-button:hover,
+    .utility-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(44, 107, 88, 0.46);
+    }
+
+    .metric-button.is-active {
+      background: var(--deep);
+      color: #fff;
+      border-color: var(--deep);
+    }
+
+    .utility-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toggle-label {
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      color: #33413b;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-label input {
+      width: 15px;
+      height: 15px;
+      accent-color: var(--accent);
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) 390px;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .map-panel,
+    .detail-panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+
+    .map-panel {
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .map-heading {
+      padding: 15px 16px 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .metric-title {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 780;
+      line-height: 1.35;
+    }
+
+    .metric-copy {
+      margin: 5px 0 0;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 13px;
+    }
+
+    .stat-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(90px, 1fr));
+      gap: 8px;
+      min-width: 320px;
+    }
+
+    .stat-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 10px;
+      background: #fafbf9;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .stat-value {
+      margin-top: 5px;
+      font-size: 18px;
+      line-height: 1;
+      font-weight: 790;
+      color: var(--deep);
+    }
+
+    #map {
+      width: 100%;
+      height: min(72vh, 720px);
+      min-height: 560px;
+    }
+
+    .map-footnote {
+      padding: 0 16px 15px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .detail-panel {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow: hidden;
+    }
+
+    .province-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 13px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .province-name {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+      font-weight: 790;
+    }
+
+    .province-region {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .risk-badge {
+      border-radius: 8px;
+      padding: 8px 10px;
+      min-width: 92px;
+      text-align: center;
+      color: #fff;
+      font-size: 12px;
+      line-height: 1.2;
+      font-weight: 800;
+    }
+
+    .current-reading {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .reading {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 11px 12px;
+      background: #fafbf9;
+    }
+
+    .reading .label {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .reading .value {
+      margin-top: 6px;
+      font-size: 27px;
+      line-height: 1;
+      font-weight: 800;
+      color: var(--deep);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .reading .value small {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .section-title {
+      margin: 0 0 8px;
+      font-size: 13px;
+      line-height: 1.4;
+      color: #35433c;
+      font-weight: 800;
+    }
+
+    .bars {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) 50px;
+      gap: 9px;
+      align-items: center;
+      font-size: 12px;
+      color: #35433c;
+    }
+
+    .bar-track {
+      height: 11px;
+      border-radius: 999px;
+      background: #e9eee6;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bar-fill {
+      height: 100%;
+      min-width: 2px;
+      border-radius: inherit;
+      background: var(--accent);
+      transition: width 240ms ease, background 240ms ease;
+    }
+
+    .bar-value {
+      text-align: right;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .analysis-note {
+      border-left: 4px solid var(--accent);
+      background: var(--surface-soft);
+      border-radius: 0 8px 8px 0;
+      padding: 11px 12px;
+      color: #2e3c36;
+      font-size: 13px;
+      line-height: 1.72;
+    }
+
+    .table-panel {
+      margin-top: 18px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .table-heading {
+      padding: 15px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .table-heading h2,
+    .notes h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.35;
+      font-weight: 790;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: 430px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 860px;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #edf1eb;
+      text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #f9faf7;
+      color: #485650;
+      font-size: 12px;
+      z-index: 2;
+    }
+
+    th:first-child,
+    td:first-child,
+    th:nth-child(2),
+    td:nth-child(2) {
+      text-align: left;
+    }
+
+    tbody tr {
+      cursor: pointer;
+    }
+
+    tbody tr:hover {
+      background: #f3f8f1;
+    }
+
+    tbody tr.is-selected {
+      background: #e6f1ea;
+    }
+
+    .rank-cell {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .notes {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .note-section {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .note-section p,
+    .note-section li {
+      color: #38463f;
+      font-size: 13px;
+      line-height: 1.78;
+    }
+
+    .note-section p {
+      margin: 9px 0 0;
+    }
+
+    .note-section ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .grade-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+      margin-top: 12px;
+    }
+
+    .grade-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 30px;
+      color: #38463f;
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    .swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      flex: 0 0 auto;
+      border: 1px solid rgba(24, 33, 29, 0.08);
+    }
+
+    .source-list {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .loading,
+    .error {
+      display: grid;
+      place-items: center;
+      min-height: 560px;
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .error {
+      color: var(--warn);
+    }
+
+    @media (max-width: 1120px) {
+      .dashboard,
+      .notes {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-panel {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .province-head,
+      .analysis-note {
+        grid-column: 1 / -1;
+      }
+
+      #map {
+        height: 660px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .topbar,
+      main {
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .topbar-inner,
+      .control-row,
+      .map-heading,
+      .table-heading {
+        grid-template-columns: 1fr;
+        display: grid;
+      }
+
+      .source-pill,
+      .utility-controls {
+        justify-self: start;
+      }
+
+      .stat-strip {
+        min-width: 0;
+        grid-template-columns: 1fr;
+      }
+
+      .detail-panel {
+        display: flex;
+      }
+
+      .current-reading {
+        grid-template-columns: 1fr;
+      }
+
+      .grade-list {
+        grid-template-columns: 1fr;
+      }
+
+      #map {
+        min-height: 470px;
+        height: 62vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <div>
+            <h1>中国省域土壤重金属污染程度地图</h1>
+            <div class="subtitle">基于公开论文表 5 的省域 Igeo 数据，覆盖中国大陆 31 个省级行政区，指标为 Cd、Pb、Zn、Cu、As、Cr。</div>
+          </div>
+        </div>
+        <a class="source-pill" href="#notes">数据口径与专业备注</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="control-row" aria-label="指标控制">
+        <div class="metric-tabs" id="metricTabs"></div>
+        <div class="utility-controls">
+          <label class="toggle-label">
+            <input type="checkbox" id="labelToggle" checked>
+            显示省名
+          </label>
+          <button class="utility-button" id="resetMap" type="button">复位地图</button>
+        </div>
+      </section>
+
+      <section class="dashboard">
+        <div class="map-panel">
+          <div class="map-heading">
+            <div>
+              <h2 class="metric-title" id="metricTitle">综合关注指数</h2>
+              <p class="metric-copy" id="metricCopy"></p>
+            </div>
+            <div class="stat-strip" aria-label="当前指标概览">
+              <div class="stat-item">
+                <div class="stat-label">最高值省份</div>
+                <div class="stat-value" id="topProvince">-</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-label">省域均值</div>
+                <div class="stat-value" id="meanValue">-</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-label">中度及以上</div>
+                <div class="stat-value" id="moderateCount">-</div>
+              </div>
+            </div>
+          </div>
+          <div id="map" role="img" aria-label="中国省域土壤重金属污染程度地图"><div class="loading">地图加载中</div></div>
+          <div class="map-footnote">数值为地累积指数 Igeo，无量纲；颜色按 Müller 地累积指数等级分段。港澳台和南海诸岛因原论文未纳入，地图中显示为暂无数据。</div>
+        </div>
+
+        <aside class="detail-panel" aria-label="省域详情">
+          <div class="province-head">
+            <div>
+              <h2 class="province-name" id="provinceName">-</h2>
+              <div class="province-region" id="provinceRegion">-</div>
+            </div>
+            <div class="risk-badge" id="riskBadge">-</div>
+          </div>
+
+          <div class="current-reading">
+            <div class="reading">
+              <div class="label">当前指标 Igeo</div>
+              <div class="value" id="currentValue">-</div>
+            </div>
+            <div class="reading">
+              <div class="label">最突出元素</div>
+              <div class="value" id="worstElement">-</div>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="section-title">六项重金属 Igeo</h3>
+            <div class="bars" id="elementBars"></div>
+          </div>
+
+          <div class="analysis-note" id="provinceNote"></div>
+        </aside>
+      </section>
+
+      <section class="table-panel">
+        <div class="table-heading">
+          <h2>省域数据表</h2>
+          <div class="subtitle" id="tableCaption">按当前指标降序排列</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>排名</th>
+                <th>省级行政区</th>
+                <th>当前指标</th>
+                <th>等级</th>
+                <th>Cd</th>
+                <th>Pb</th>
+                <th>Zn</th>
+                <th>Cu</th>
+                <th>As</th>
+                <th>Cr</th>
+                <th>主要备注</th>
+              </tr>
+            </thead>
+            <tbody id="dataRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="notes" id="notes">
+        <div class="note-section">
+          <h2>评价方法</h2>
+          <p>Igeo 为地累积指数，计算式为 Igeo = log2(Ci / 1.5Bi)，Ci 为样品中元素含量，Bi 为元素背景值；1.5 为考虑成土母质差异的修正系数。Igeo 大于 0 表示相对背景值存在富集，数值越高代表污染累积程度越高。</p>
+          <div class="grade-list" id="gradeList"></div>
+          <p>本页“综合关注”是从六项重金属 Igeo 中取最大值，用于快速识别省域最需关注的元素。它是页面派生筛查指标，不是论文中的独立原始指标，也不等同于法定超标率或人体健康风险。</p>
+        </div>
+
+        <div class="note-section">
+          <h2>数据来源与边界</h2>
+          <ul>
+            <li>省域地图数据来自石航源等《环境科学》2023 年论文表 5。该研究整理 2000-2020 年 706 篇核心文献，分析中国大陆 31 个省级行政区土壤 Cd、Pb、Zn、Cu、As、Cr 的 Igeo。</li>
+            <li>官方背景参照 2014 年《全国土壤污染状况调查公报》：全国土壤总点位超标率 16.1%，耕地点位超标率 19.4%；无机污染物为主要类型，镉、汞、砷、铜、铅、铬、锌、镍点位超标率分别为 7.0%、1.6%、2.7%、2.1%、1.5%、1.1%、0.9%、4.8%。</li>
+            <li>论文作者指出，文献样本较容易集中在受关注或污染区域，因此其污染水平可能高于全国概查结果。省域均值不能替代具体地块调查，也不能直接作为修复、开发或农产品安全判定依据。</li>
+          </ul>
+          <div class="source-list">
+            来源 1：<a href="https://www.hjkx.ac.cn/hjkx/ch/html/20230848.htm" target="_blank" rel="noopener">石航源等，中国省域土壤重金属空间分布特征及分区管控对策，环境科学，2023</a><br>
+            来源 2：<a href="https://www.mee.gov.cn/gkml/sthjbgw/qt/201404/t20140417_270670.htm" target="_blank" rel="noopener">环境保护部、国土资源部，全国土壤污染状况调查公报，2014</a><br>
+            边界：<a href="https://datav.aliyun.com/portal/school/atlas/area_selector" target="_blank" rel="noopener">DataV.GeoAtlas 中国省级行政区边界</a>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="assets/echarts.min.js"></script>
+  <script>
+    const elements = ["Cd", "Pb", "Zn", "Cu", "As", "Cr"];
+
+    const metricDefs = {
+      max: {
+        label: "综合关注",
+        title: "综合关注指数",
+        copy: "取每个省级行政区六项重金属 Igeo 的最大值，突出该省市最需要优先关注的元素。该指标用于筛查和排序，不等同于法定超标率。"
+      },
+      Cd: { label: "Cd 镉", title: "Cd 镉污染累积", copy: "镉是省域尺度最突出的重金属污染元素。论文报告全国省域均值 Igeo 为 1.80，多数省份 Cd 相对背景值呈明显富集。" },
+      Pb: { label: "Pb 铅", title: "Pb 铅污染累积", copy: "铅的省域均值 Igeo 为 0.23，整体处于轻度污染附近，高值更集中在广西、宁夏、广东、上海等地。" },
+      Zn: { label: "Zn 锌", title: "Zn 锌污染累积", copy: "锌的省域均值 Igeo 为 -0.05，整体接近无污染到轻度污染分界；局地城市化和工业活动可造成较高富集。" },
+      Cu: { label: "Cu 铜", title: "Cu 铜污染累积", copy: "铜的省域均值 Igeo 为 0.17，整体为轻度富集。江西、甘肃、宁夏、湖南、辽宁等地相对更突出。" },
+      As: { label: "As 砷", title: "As 砷污染累积", copy: "砷的省域均值 Igeo 为 -0.56，整体低于背景富集线。需注意健康风险评价还取决于暴露途径、形态和土地利用。" },
+      Cr: { label: "Cr 铬", title: "Cr 铬污染累积", copy: "铬的省域均值 Igeo 为 -0.69，论文表 5 中各省均小于 0，省域平均累积程度相对较低。" }
+    };
+
+    const gradeDefs = [
+      { min: -Infinity, max: 0, label: "无污染", range: "Igeo < 0", color: "#d9eadf", text: "#24342e" },
+      { min: 0, max: 1, label: "轻度污染", range: "0-1", color: "#fff1a8", text: "#3b3420" },
+      { min: 1, max: 2, label: "轻中度污染", range: "1-2", color: "#f7c56d", text: "#3b2c18" },
+      { min: 2, max: 3, label: "中度污染", range: "2-3", color: "#ee8a4f", text: "#351f14" },
+      { min: 3, max: 4, label: "中强度污染", range: "3-4", color: "#c84b3d", text: "#ffffff" },
+      { min: 4, max: 5, label: "强度污染", range: "4-5", color: "#8f2b2d", text: "#ffffff" },
+      { min: 5, max: Infinity, label: "超强度污染", range: "Igeo >= 5", color: "#4d1218", text: "#ffffff" }
+    ];
+
+    const provinceData = [
+      { name: "安徽省", short: "安徽", region: "华东", values: { Cd: 2.88, Pb: 0.58, Zn: 0.46, Cu: 0.64, As: -0.08, Cr: -0.95 }, note: "Cd 达中度污染等级，Pb、Zn、Cu 为轻度富集。论文将安徽列为 Cd、Pb、Cu、Zn 污染需重点关注省份之一，农业利用和有色金属相关活动均需纳入管控。" },
+      { name: "北京市", short: "北京", region: "华北", values: { Cd: 1.78, Pb: -0.73, Zn: -1.07, Cu: -0.24, As: -0.98, Cr: -1.61 }, note: "当前最大值来自 Cd，处于轻中度污染等级。其他五项 Igeo 均低于 0，说明省域平均层面相对背景富集不明显。" },
+      { name: "重庆市", short: "重庆", region: "西南", values: { Cd: 1.50, Pb: -0.22, Zn: -0.63, Cu: -0.83, As: -0.29, Cr: -1.29 }, note: "最大值为 Cd，属于轻中度污染。论文将重庆列入第二梯度健康风险管控区，省域均值不能代表局地工业或采矿地块状况。" },
+      { name: "福建省", short: "福建", region: "华东", values: { Cd: 2.78, Pb: 0.57, Zn: 0.21, Cu: 0.22, As: -0.09, Cr: -0.16 }, note: "Cd 为中度污染，Pb、Zn、Cu 轻度富集。论文指出福建等沿海地区土壤污染主要与工业生产和城市化建设有关，应重点关注 Cd 及 Pb、Cu、Zn。" },
+      { name: "广东省", short: "广东", region: "华南", values: { Cd: 1.66, Pb: 0.98, Zn: 0.20, Cu: 0.23, As: -0.95, Cr: -1.02 }, note: "Cd 为轻中度污染，Pb 接近轻度污染上限。珠江三角洲等城市群地区存在点状高值区，城市工业和交通活动是重要关注因素。" },
+      { name: "甘肃省", short: "甘肃", region: "西北", values: { Cd: 2.19, Pb: -0.42, Zn: 0.53, Cu: 0.96, As: -0.18, Cr: -0.46 }, note: "Cd 达中度污染，Cu 接近轻度污染上限，Zn 为轻度富集。论文结论将甘肃列为 Cd、Pb、Cu、Zn 污染较突出的资源型省份。" },
+      { name: "广西壮族自治区", short: "广西", region: "华南", values: { Cd: 1.45, Pb: 1.59, Zn: 0.05, Cu: 0.23, As: -1.03, Cr: -0.70 }, note: "最大值为 Pb，处于轻中度污染；Cd 也达到轻中度。广西属于有色金属资源型省区，论文指出当地儿童致癌风险相对较高。" },
+      { name: "贵州省", short: "贵州", region: "西南", values: { Cd: -0.52, Pb: -0.19, Zn: -0.27, Cu: 0.11, As: -0.80, Cr: -1.00 }, note: "六项中仅 Cu 略高于 0，整体省域 Igeo 低。需要注意西南喀斯特背景和矿业活动会导致局地差异，省域均值不能替代地块监测。" },
+      { name: "海南省", short: "海南", region: "华南", values: { Cd: 1.08, Pb: 0.03, Zn: 0.26, Cu: -0.24, As: -0.29, Cr: -0.92 }, note: "最大值为 Cd，属于轻中度污染下沿。Pb、Zn 轻度富集，Cu、As、Cr 低于 0。" },
+      { name: "河北省", short: "河北", region: "华北", values: { Cd: 1.33, Pb: 0.18, Zn: -0.01, Cu: 0.40, As: -1.22, Cr: -0.62 }, note: "最大值为 Cd，属于轻中度污染。论文提到京津冀城市群存在高值点状分布，省域平均会掩盖产业带和城市周边差异。" },
+      { name: "河南省", short: "河南", region: "华中", values: { Cd: 2.56, Pb: 0.64, Zn: 0.69, Cu: 0.34, As: -1.14, Cr: -0.79 }, note: "Cd 达中度污染，Pb、Zn、Cu 轻度富集。论文指出河南、山东、安徽等粮食生产区，高强度农业利用是重金属积累的重要原因。" },
+      { name: "黑龙江省", short: "黑龙江", region: "东北", values: { Cd: 2.81, Pb: 0.51, Zn: 0.03, Cu: 0.38, As: -0.95, Cr: -0.44 }, note: "Cd 达中度污染，Pb、Zn、Cu 有轻度富集。省域尺度上 Cd 是最主要关注元素，局地还应结合土壤类型和农业投入判断。" },
+      { name: "湖北省", short: "湖北", region: "华中", values: { Cd: 1.35, Pb: 0.90, Zn: -1.35, Cu: -1.03, As: -0.81, Cr: -1.03 }, note: "最大值为 Cd，Pb 接近轻度污染上限。论文将湖北列入第二梯度健康风险管控区，需重点看工业带、矿业区和耕地利用差异。" },
+      { name: "湖南省", short: "湖南", region: "华中", values: { Cd: 3.12, Pb: 0.10, Zn: 0.29, Cu: 0.74, As: -0.21, Cr: -0.57 }, note: "Cd 达中强度污染，是全国 Cd 最突出省份之一。湖南属于有色金属资源型省份，论文将其列为重金属污染防治重点区。" },
+      { name: "吉林省", short: "吉林", region: "东北", values: { Cd: 1.87, Pb: -0.06, Zn: 0.11, Cu: 0.13, As: -0.53, Cr: -0.44 }, note: "最大值为 Cd，接近轻中度污染上限。Pb、As、Cr 低于 0，Zn 和 Cu 为轻度富集。" },
+      { name: "江苏省", short: "江苏", region: "华东", values: { Cd: 1.96, Pb: -0.44, Zn: 0.16, Cu: 0.00, As: -0.57, Cr: -0.85 }, note: "Cd 接近中度污染阈值，Zn 轻度富集。论文指出江苏等沿海地区主要受工业生产和城市化建设影响，并建议关注 Pb、Cu、Zn。" },
+      { name: "江西省", short: "江西", region: "华东", values: { Cd: 2.42, Pb: -0.05, Zn: -0.07, Cu: 1.86, As: -0.39, Cr: -0.32 }, note: "Cd 为中度污染，Cu 达轻中度污染且接近中度阈值。江西为有色金属资源型省份，是论文列出的重点防治区之一。" },
+      { name: "辽宁省", short: "辽宁", region: "东北", values: { Cd: 1.93, Pb: 0.48, Zn: 0.33, Cu: 0.72, As: -0.42, Cr: -0.88 }, note: "Cd 接近中度污染阈值，Pb、Zn、Cu 轻度富集。东北老工业基地局地土壤污染问题在官方调查中也被列为较突出区域。" },
+      { name: "内蒙古自治区", short: "内蒙古", region: "华北", values: { Cd: 2.49, Pb: 0.37, Zn: -0.15, Cu: 0.04, As: 0.04, Cr: -0.23 }, note: "Cd 达中度污染，Pb、Cu、As 轻度富集。论文指出内蒙古部分有色金属资源区土壤重金属含量相对较高。" },
+      { name: "宁夏回族自治区", short: "宁夏", region: "西北", values: { Cd: 0.35, Pb: 1.11, Zn: -0.47, Cu: 0.87, As: -0.78, Cr: -0.42 }, note: "最大值为 Pb，属于轻中度污染；Cu 为轻度污染。综合关注不由 Cd 主导，是页面中少数 Pb 更突出的省级行政区。" },
+      { name: "青海省", short: "青海", region: "西北", values: { Cd: 1.13, Pb: -2.03, Zn: -0.10, Cu: -0.13, As: -1.11, Cr: -0.81 }, note: "最大值为 Cd，属于轻中度污染下沿。Pb、Zn、Cu、As、Cr 均低于 0，省域平均累积程度相对较低。" },
+      { name: "四川省", short: "四川", region: "西南", values: { Cd: 2.14, Pb: 0.22, Zn: 0.13, Cu: 0.08, As: -0.72, Cr: -0.78 }, note: "Cd 达中度污染，Pb、Zn、Cu 轻度富集。论文建议四川重点关注 Pb、Cu、Zn，并将其列入第二梯度健康风险管控区。" },
+      { name: "山东省", short: "山东", region: "华东", values: { Cd: 2.06, Pb: 0.41, Zn: -0.04, Cu: -0.12, As: -0.43, Cr: -0.47 }, note: "Cd 达中度污染，Pb 轻度富集。论文指出山东等农业大省，高强度农业利用是重金属积累的重要因素。" },
+      { name: "上海市", short: "上海", region: "华东", values: { Cd: 1.61, Pb: 0.96, Zn: 0.85, Cu: 0.66, As: -0.41, Cr: -0.59 }, note: "Cd 为轻中度污染，Pb、Zn、Cu 均接近或处于较高的轻度富集。城市化建设和工业活动是沿海城市土壤重金属的重要来源。" },
+      { name: "陕西省", short: "陕西", region: "西北", values: { Cd: 2.00, Pb: 0.39, Zn: -0.02, Cu: 0.26, As: -0.22, Cr: -0.52 }, note: "Cd 位于中度污染阈值，Pb 和 Cu 轻度富集。论文将陕西列入第二梯度健康风险管控区。" },
+      { name: "山西省", short: "山西", region: "华北", values: { Cd: 0.52, Pb: 0.44, Zn: -0.59, Cu: -0.75, As: -0.46, Cr: -0.51 }, note: "Cd 和 Pb 为轻度污染，其余元素低于 0。应结合煤炭、冶炼、交通等局地来源进行地块尺度识别。" },
+      { name: "天津市", short: "天津", region: "华北", values: { Cd: 3.34, Pb: 0.23, Zn: 0.01, Cu: 0.02, As: -0.05, Cr: -0.99 }, note: "Cd 达中强度污染，是论文列出的 Cd 重点省市之一。沿海工业生产和城市化建设是重要关注方向。" },
+      { name: "新疆维吾尔自治区", short: "新疆", region: "西北", values: { Cd: 1.32, Pb: -0.32, Zn: 0.17, Cu: 0.01, As: -0.21, Cr: -0.05 }, note: "最大值为 Cd，属于轻中度污染。Zn、Cu 轻度富集，其余元素低于 0 或接近 0。" },
+      { name: "西藏自治区", short: "西藏", region: "西南", values: { Cd: 0.87, Pb: 0.11, Zn: -0.58, Cu: -1.26, As: -0.72, Cr: -1.20 }, note: "最大值为 Cd，属于轻度污染。整体省域 Igeo 较低，但高海拔生态脆弱区仍需重视矿业和交通廊道局地影响。" },
+      { name: "云南省", short: "云南", region: "西南", values: { Cd: 0.81, Pb: 0.08, Zn: -0.96, Cu: 0.33, As: -0.35, Cr: -0.48 }, note: "省域 Igeo 最大值为 Cd，处于轻度污染。论文同时指出云南有色金属资源丰富，部分区域土壤重金属含量和儿童致癌风险相对较高，局地高值不能被省域均值替代。" },
+      { name: "浙江省", short: "浙江", region: "华东", values: { Cd: 3.05, Pb: 0.59, Zn: 0.24, Cu: 0.58, As: -0.99, Cr: -0.19 }, note: "Cd 达中强度污染，Pb、Zn、Cu 轻度富集。论文将浙江列为 Cd 污染等级较高省份，沿海工业和城市化活动是主要关注因素。" }
+    ];
+
+    const state = {
+      metric: "max",
+      selectedName: "天津市",
+      labels: true,
+      chart: null
+    };
+
+    const dom = {
+      metricTabs: document.getElementById("metricTabs"),
+      metricTitle: document.getElementById("metricTitle"),
+      metricCopy: document.getElementById("metricCopy"),
+      topProvince: document.getElementById("topProvince"),
+      meanValue: document.getElementById("meanValue"),
+      moderateCount: document.getElementById("moderateCount"),
+      provinceName: document.getElementById("provinceName"),
+      provinceRegion: document.getElementById("provinceRegion"),
+      riskBadge: document.getElementById("riskBadge"),
+      currentValue: document.getElementById("currentValue"),
+      worstElement: document.getElementById("worstElement"),
+      elementBars: document.getElementById("elementBars"),
+      provinceNote: document.getElementById("provinceNote"),
+      dataRows: document.getElementById("dataRows"),
+      tableCaption: document.getElementById("tableCaption"),
+      labelToggle: document.getElementById("labelToggle"),
+      resetMap: document.getElementById("resetMap"),
+      gradeList: document.getElementById("gradeList"),
+      map: document.getElementById("map")
+    };
+
+    function metricValue(row, metric = state.metric) {
+      if (metric === "max") return Math.max(...elements.map((key) => row.values[key]));
+      return row.values[metric];
+    }
+
+    function worstMetal(row) {
+      return elements.reduce((best, key) => row.values[key] > row.values[best] ? key : best, elements[0]);
+    }
+
+    function classify(value) {
+      return gradeDefs.find((grade) => value >= grade.min && value < grade.max) || gradeDefs[0];
+    }
+
+    function valueText(value) {
+      return Number.isFinite(value) ? value.toFixed(2) : "-";
+    }
+
+    function sortedRows() {
+      return [...provinceData].sort((a, b) => metricValue(b) - metricValue(a));
+    }
+
+    function buildMetricTabs() {
+      const keys = ["max", ...elements];
+      dom.metricTabs.innerHTML = keys.map((key) => {
+        const active = key === state.metric ? " is-active" : "";
+        return `<button class="metric-button${active}" type="button" data-metric="${key}">${metricDefs[key].label}</button>`;
+      }).join("");
+      dom.metricTabs.querySelectorAll("button").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.metric = button.dataset.metric;
+          const top = sortedRows()[0];
+          if (!provinceData.some((row) => row.name === state.selectedName)) state.selectedName = top.name;
+          updateAll();
+        });
+      });
+    }
+
+    function renderGradeList() {
+      dom.gradeList.innerHTML = gradeDefs.map((grade) => `
+        <div class="grade-item">
+          <span class="swatch" style="background:${grade.color}"></span>
+          <span>${grade.range}：${grade.label}</span>
+        </div>
+      `).join("");
+    }
+
+    function renderStats(rows) {
+      const values = rows.map((row) => metricValue(row));
+      const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+      const top = rows[0];
+      const count = values.filter((value) => value >= 2).length;
+      dom.topProvince.textContent = `${top.short} ${valueText(metricValue(top))}`;
+      dom.meanValue.textContent = valueText(mean);
+      dom.moderateCount.textContent = `${count} 个`;
+    }
+
+    function renderDetail() {
+      const row = provinceData.find((item) => item.name === state.selectedName) || sortedRows()[0];
+      const current = metricValue(row);
+      const grade = classify(current);
+      const metal = worstMetal(row);
+      const currentLabel = state.metric === "max" ? "最大 Igeo" : state.metric;
+
+      dom.provinceName.textContent = row.name;
+      dom.provinceRegion.textContent = `${row.region}省域样本汇总；当前指标：${metricDefs[state.metric].label}`;
+      dom.riskBadge.textContent = grade.label;
+      dom.riskBadge.style.background = grade.color;
+      dom.riskBadge.style.color = grade.text;
+      dom.currentValue.innerHTML = `${valueText(current)} <small>${currentLabel}</small>`;
+      dom.worstElement.innerHTML = `${metal} <small>${valueText(row.values[metal])}</small>`;
+      dom.provinceNote.textContent = row.note;
+
+      const minScale = -2.2;
+      const maxScale = 3.6;
+      dom.elementBars.innerHTML = elements.map((key) => {
+        const value = row.values[key];
+        const width = Math.max(4, Math.min(100, ((value - minScale) / (maxScale - minScale)) * 100));
+        const gradeForValue = classify(value);
+        return `
+          <div class="bar-row">
+            <strong>${key}</strong>
+            <div class="bar-track" aria-hidden="true"><div class="bar-fill" style="width:${width}%; background:${gradeForValue.color}"></div></div>
+            <span class="bar-value">${valueText(value)}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderTable(rows) {
+      dom.tableCaption.textContent = `按 ${metricDefs[state.metric].label} 降序排列，共 ${rows.length} 个省级行政区`;
+      dom.dataRows.innerHTML = rows.map((row, index) => {
+        const current = metricValue(row);
+        const grade = classify(current);
+        const selected = row.name === state.selectedName ? " class=\"is-selected\"" : "";
+        return `
+          <tr${selected} data-name="${row.name}">
+            <td class="rank-cell">${index + 1}</td>
+            <td><strong>${row.name}</strong></td>
+            <td>${valueText(current)}</td>
+            <td><span class="swatch" style="display:inline-block;background:${grade.color};vertical-align:middle;margin-right:6px"></span>${grade.label}</td>
+            ${elements.map((key) => `<td>${valueText(row.values[key])}</td>`).join("")}
+            <td style="text-align:left; max-width: 360px; overflow:hidden; text-overflow:ellipsis;">${row.note}</td>
+          </tr>
+        `;
+      }).join("");
+
+      dom.dataRows.querySelectorAll("tr").forEach((rowEl) => {
+        rowEl.addEventListener("click", () => {
+          state.selectedName = rowEl.dataset.name;
+          updateAll(false);
+          focusProvince();
+        });
+      });
+    }
+
+    function mapData() {
+      return provinceData.map((row) => ({
+        name: row.name,
+        value: Number(metricValue(row).toFixed(2)),
+        short: row.short,
+        grade: classify(metricValue(row)).label,
+        worst: worstMetal(row)
+      }));
+    }
+
+    function buildOption() {
+      const narrowLayout = window.innerWidth <= 760
+        ? { layoutCenter: ["50%", "43%"], layoutSize: "128%" }
+        : {};
+
+      return {
+        backgroundColor: "transparent",
+        tooltip: {
+          trigger: "item",
+          borderWidth: 0,
+          backgroundColor: "rgba(24, 33, 29, 0.92)",
+          textStyle: { color: "#fff", fontSize: 12 },
+          extraCssText: "border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,.18);",
+          formatter(params) {
+            const row = provinceData.find((item) => item.name === params.name);
+            if (!row) return `${params.name}<br>暂无论文表 5 数据`;
+            const value = metricValue(row);
+            const grade = classify(value);
+            const metal = worstMetal(row);
+            return [
+              `<strong>${row.name}</strong>`,
+              `${metricDefs[state.metric].label}: ${valueText(value)}`,
+              `等级: ${grade.label}`,
+              `最突出元素: ${metal} ${valueText(row.values[metal])}`
+            ].join("<br>");
+          }
+        },
+        visualMap: {
+          type: "piecewise",
+          left: 18,
+          bottom: 18,
+          itemWidth: 16,
+          itemHeight: 12,
+          itemGap: 8,
+          textStyle: { color: "#4a574f", fontSize: 12 },
+          pieces: [
+            { lt: 0, label: "无污染", color: gradeDefs[0].color },
+            { gte: 0, lt: 1, label: "轻度", color: gradeDefs[1].color },
+            { gte: 1, lt: 2, label: "轻中度", color: gradeDefs[2].color },
+            { gte: 2, lt: 3, label: "中度", color: gradeDefs[3].color },
+            { gte: 3, lt: 4, label: "中强度", color: gradeDefs[4].color },
+            { gte: 4, lt: 5, label: "强度", color: gradeDefs[5].color },
+            { gte: 5, label: "超强度", color: gradeDefs[6].color }
+          ],
+          outOfRange: { color: "#e7ebe5" }
+        },
+        series: [{
+          name: metricDefs[state.metric].label,
+          type: "map",
+          map: "china",
+          ...narrowLayout,
+          roam: true,
+          zoom: 1.18,
+          scaleLimit: { min: 0.9, max: 8 },
+          selectedMode: "single",
+          data: mapData(),
+          label: {
+            show: state.labels,
+            color: "#26342e",
+            fontSize: 10,
+            formatter(params) {
+              const row = provinceData.find((item) => item.name === params.name);
+              return row ? row.short : "";
+            }
+          },
+          itemStyle: {
+            areaColor: "#e7ebe5",
+            borderColor: "#ffffff",
+            borderWidth: 0.9
+          },
+          emphasis: {
+            label: { show: true, color: "#17211d", fontWeight: 800 },
+            itemStyle: {
+              areaColor: "#f0d06a",
+              borderColor: "#17211d",
+              borderWidth: 1.2
+            }
+          },
+          select: {
+            label: { show: true, color: "#17211d", fontWeight: 800 },
+            itemStyle: {
+              borderColor: "#17211d",
+              borderWidth: 1.6,
+              shadowColor: "rgba(0,0,0,.18)",
+              shadowBlur: 12
+            }
+          }
+        }]
+      };
+    }
+
+    function focusProvince() {
+      if (!state.chart) return;
+      state.chart.dispatchAction({ type: "downplay", seriesIndex: 0 });
+      state.chart.dispatchAction({ type: "select", seriesIndex: 0, name: state.selectedName });
+      state.chart.dispatchAction({ type: "highlight", seriesIndex: 0, name: state.selectedName });
+    }
+
+    function updateMap() {
+      if (!state.chart) return;
+      state.chart.setOption(buildOption(), true);
+      focusProvince();
+    }
+
+    function updateAll(rebuildTabs = true) {
+      const metric = metricDefs[state.metric];
+      const rows = sortedRows();
+      if (rebuildTabs) buildMetricTabs();
+      dom.metricTitle.textContent = metric.title;
+      dom.metricCopy.textContent = metric.copy;
+      renderStats(rows);
+      renderDetail();
+      renderTable(rows);
+      updateMap();
+    }
+
+    function bindMapEvents() {
+      state.chart.on("click", (params) => {
+        const row = provinceData.find((item) => item.name === params.name);
+        if (!row) return;
+        state.selectedName = row.name;
+        updateAll(false);
+      });
+    }
+
+    async function initMap() {
+      if (!window.echarts) {
+        dom.map.innerHTML = `<div class="error">图表库未加载，请确认 assets/echarts.min.js 存在。</div>`;
+        return;
+      }
+
+      try {
+        const response = await fetch("assets/china_full.json");
+        if (!response.ok) throw new Error(`GeoJSON HTTP ${response.status}`);
+        const geoJson = await response.json();
+        echarts.registerMap("china", geoJson);
+        dom.map.innerHTML = "";
+        state.chart = echarts.init(dom.map, null, { renderer: "canvas" });
+        bindMapEvents();
+        updateAll();
+        window.addEventListener("resize", () => state.chart.resize());
+      } catch (error) {
+        dom.map.innerHTML = `<div class="error">地图边界加载失败。请通过本地静态服务打开本页，或确认 assets/china_full.json 存在。</div>`;
+        console.error(error);
+      }
+    }
+
+    dom.labelToggle.addEventListener("change", (event) => {
+      state.labels = event.target.checked;
+      updateMap();
+    });
+
+    dom.resetMap.addEventListener("click", () => {
+      if (!state.chart) return;
+      state.chart.dispatchAction({ type: "restore" });
+      updateMap();
+    });
+
+    renderGradeList();
+    initMap();
+  </script>
+</body>
+</html>
